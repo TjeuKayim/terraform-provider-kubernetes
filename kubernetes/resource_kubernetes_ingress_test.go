@@ -9,8 +9,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	api "k8s.io/api/extensions/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestCheckNotFoundErr(t *testing.T) {
+	err := errors.StatusError{
+		ErrStatus: metav1.Status{
+			Code:   404,
+			Reason: metav1.StatusReasonNotFound,
+		},
+	}
+	if !errors.IsNotFound(&err) {
+		t.Fatalf("Expected to be not found\n")
+	}
+}
 
 func TestAccKubernetesIngress_basic(t *testing.T) {
 	var conf api.Ingress

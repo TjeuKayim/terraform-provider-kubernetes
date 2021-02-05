@@ -3,8 +3,12 @@ package resource
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // RetryContext is a basic wrapper around StateChangeConf that will just retry
@@ -66,6 +70,24 @@ func RetryContext(ctx context.Context, timeout time.Duration, f RetryFunc) error
 // Deprecated: Please use RetryContext to ensure proper plugin shutdown
 func Retry(timeout time.Duration, f RetryFunc) error {
 	return RetryContext(context.Background(), timeout, f)
+}
+
+/// RetryUntilDeleted is a helper to retry a function that gets a resource
+/// until it returns a NotFound error to wait for its deletion.
+func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, get func() (interface{}, error)) error {
+	return RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *RetryError {
+		_, err := get()
+		if err != nil {
+			if statusErr, ok := err.(*k8serrors.StatusError); ok && k8serrors.IsNotFound(statusErr) {
+				return nil
+			}
+			return NonRetryableError(err)
+		}
+
+		// TODO: Type name
+		e := fmt.Errorf("%s (%s) still exists", "ingress", d.Id())
+		return RetryableError(e)
+	})
 }
 
 // RetryFunc is the function retried until it succeeds.
