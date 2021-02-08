@@ -72,9 +72,9 @@ func Retry(timeout time.Duration, f RetryFunc) error {
 	return RetryContext(context.Background(), timeout, f)
 }
 
-/// RetryUntilDeleted is a helper to retry a function that gets a resource
-/// until it returns a NotFound error to wait for its deletion.
-func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, get func() (interface{}, error)) error {
+// RetryUntilDeleted is a helper to retry a function that gets a resource
+// until it returns a NotFound error to wait for its deletion.
+func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, resourceType string, get func() (interface{}, error)) error {
 	return RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *RetryError {
 		_, err := get()
 		if err != nil {
@@ -84,8 +84,7 @@ func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, get func() (
 			return NonRetryableError(err)
 		}
 
-		// TODO: Type name
-		e := fmt.Errorf("%s (%s) still exists", "ingress", d.Id())
+		e := fmt.Errorf("%s (%s) still exists", resourceType, d.Id())
 		return RetryableError(e)
 	})
 }

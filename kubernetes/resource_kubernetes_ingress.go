@@ -314,7 +314,7 @@ func resourceKubernetesIngressDelete(ctx context.Context, d *schema.ResourceData
 		return diag.Errorf("Failed to delete Ingress %s because: %s", d.Id(), err)
 	}
 
-	err = resource.RetryUntilDeleted(ctx, d, func() (interface{}, error) {
+	err = resource.RetryUntilDeleted(ctx, d, "Ingress", func() (interface{}, error) {
 		return conn.ExtensionsV1beta1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
