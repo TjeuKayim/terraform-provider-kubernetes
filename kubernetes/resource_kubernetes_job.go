@@ -234,17 +234,8 @@ func resourceKubernetesJobDelete(ctx context.Context, d *schema.ResourceData, me
 		return diag.Errorf("Failed to delete Job! API error: %s", err)
 	}
 
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("Job %s still exists", name)
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "Job", func() (interface{}, error) {
+		return conn.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)

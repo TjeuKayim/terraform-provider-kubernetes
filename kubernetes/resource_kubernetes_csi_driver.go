@@ -169,17 +169,8 @@ func resourceKubernetesCSIDriverDelete(ctx context.Context, d *schema.ResourceDa
 		return diag.FromErr(err)
 	}
 
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.StorageV1beta1().CSIDrivers().Get(ctx, d.Id(), metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("CSIDriver (%s) still exists", d.Id())
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "CSIDriver", func() (interface{}, error) {
+		return conn.StorageV1beta1().CSIDrivers().Get(ctx, d.Id(), metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)

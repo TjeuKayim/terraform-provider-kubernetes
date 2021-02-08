@@ -280,17 +280,8 @@ func resourceKubernetesReplicationControllerDelete(ctx context.Context, d *schem
 	}
 
 	// Wait for Delete to finish. Necessary for ForceNew operations.
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.CoreV1().ReplicationControllers(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("Replication Controller (%s) still exists", d.Id())
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "Replication Controller", func() (interface{}, error) {
+		return conn.CoreV1().ReplicationControllers(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)

@@ -364,17 +364,8 @@ func resourceKubernetesDeploymentDelete(ctx context.Context, d *schema.ResourceD
 		return diag.FromErr(err)
 	}
 
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("Deployment (%s) still exists", d.Id())
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "Deployment", func() (interface{}, error) {
+		return conn.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)

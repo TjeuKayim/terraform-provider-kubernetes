@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -203,17 +202,8 @@ func resourceKubernetesCronJobDelete(ctx context.Context, d *schema.ResourceData
 		return diag.FromErr(err)
 	}
 
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.BatchV1beta1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("Cron Job %s still exists", name)
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "Cron Job", func() (interface{}, error) {
+		return conn.BatchV1beta1().CronJobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)

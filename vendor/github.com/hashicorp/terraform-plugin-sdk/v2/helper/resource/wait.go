@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -76,7 +77,7 @@ func Retry(timeout time.Duration, f RetryFunc) error {
 // until it returns a NotFound error to wait for its deletion.
 func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, resourceType string, get func() (interface{}, error)) error {
 	return RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *RetryError {
-		_, err := get()
+		out, err := get()
 		if err != nil {
 			if statusErr, ok := err.(*k8serrors.StatusError); ok && k8serrors.IsNotFound(statusErr) {
 				return nil
@@ -84,7 +85,8 @@ func RetryUntilDeleted(ctx context.Context, d *schema.ResourceData, resourceType
 			return NonRetryableError(err)
 		}
 
-		e := fmt.Errorf("%s (%s) still exists", resourceType, d.Id())
+		log.Printf("[DEBUG] Current state of %s: %#v", resourceType, out.Status.Phase)
+		e := fmt.Errorf("%s (%s) still exists (%s)", resourceType, d.Id(), out.Status.Phase)
 		return RetryableError(e)
 	})
 }

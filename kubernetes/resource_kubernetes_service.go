@@ -373,17 +373,8 @@ func resourceKubernetesServiceDelete(ctx context.Context, d *schema.ResourceData
 		return diag.FromErr(err)
 	}
 
-	err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutDelete), func() *resource.RetryError {
-		_, err := conn.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok && statusErr.ErrStatus.Code == 404 {
-				return nil
-			}
-			return resource.NonRetryableError(err)
-		}
-
-		e := fmt.Errorf("Service (%s) still exists", d.Id())
-		return resource.RetryableError(e)
+	err = resource.RetryUntilDeleted(ctx, d, "Service", func() (interface{}, error) {
+		return conn.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	})
 	if err != nil {
 		return diag.FromErr(err)
